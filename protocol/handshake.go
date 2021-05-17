@@ -9,7 +9,7 @@ type Handshake struct {
 
 func (c *Conn) SendHandshake() {
 	c.WritePacket(Handshake{
-		ProtocolVersion: 47,
+		ProtocolVersion: 4,
 		Address:         c.Host,
 		Port:            c.Port,
 		State:           1,
