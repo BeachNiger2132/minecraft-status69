@@ -92,32 +92,29 @@ func NewNetClient(host string) (*Conn, error) {
 	// Parse the host string
 	hostSplits := strings.Split(portSplits[0], ".")
 
-	// Init variables
-	var ip []net.IP;
-
-	// Boy we have a subdomain here
+	// Ignore subdomains for the SRV checks
 	if len(hostSplits) > 2 {
-		tempIp, errIp := net.LookupIP(newHost)
-		if errIp == nil {
-			ip = tempIp;
-		} else {
-			srvHost := hostSplits[len(hostSplits)-2] + "." + hostSplits[len(hostSplits)-1];
-			tempIP, tempPort, err := resolveSRV( srvHost, srvHost );
-			if err != nil {
-				return nil, err
-			}
+		newHost = hostSplits[len(hostSplits)-2] + "." + hostSplits[len(hostSplits)-1]
+	}
 
-			ip = tempIP
-			port = tempPort
-		}
+	// First try SRV
+	cname, srv, err := net.LookupSRV("minecraft", "tcp", newHost)
+	if err != nil || cname != "" {
+		// Ignore this error
+	}
+
+	// We found a SRV record use it
+	if len(srv) > 0 {
+		port = strconv.FormatUint(uint64(srv[0].Port), 10)
+		newHost = srv[0].Target
 	} else {
-		tempIP, tempPort, err := resolveSRV( portSplits[0], portSplits[0] );
-		if err != nil {
-			return nil, err
-		}
+		newHost = portSplits[0]
+	}
 
-		ip = tempIP
-		port = tempPort
+	// Get the A record
+	ip, errIp := net.LookupIP(newHost)
+	if errIp != nil {
+		return nil, errIp
 	}
 
 	// Fix invalid argument to rand
@@ -165,32 +162,6 @@ func NewNetClient(host string) (*Conn, error) {
 	}
 
 	return mcConn, nil
-}
-
-func resolveSRV(srvHost string, aHost string) (ips []net.IP, port string, err error) {
-	port = "25565";
-
-	// First try SRV
-	cname, srv, err := net.LookupSRV("minecraft", "tcp", srvHost)
-	if err != nil || cname != "" {
-		// Ignore this error
-	}
-
-	// We found a SRV record use it
-	if len(srv) > 0 {
-		port = strconv.FormatUint(uint64(srv[0].Port), 10)
-		srvHost = srv[0].Target
-	} else {
-		srvHost = aHost
-	}
-
-	// Get the A record
-	srvIp, errIp := net.LookupIP(srvHost)
-	if errIp != nil {
-		return nil, "", errIp
-	}
-
-	return srvIp, port, nil
 }
 
 func (conn *Conn) Close() {
